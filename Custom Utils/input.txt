@@ -1,0 +1,5 @@
+mass_kg 60
+height_m 1.6
+subject_name jo
+device1 iPhone12,1
+device2 iPhone14,7

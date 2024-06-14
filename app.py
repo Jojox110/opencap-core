@@ -10,7 +10,7 @@ import glob
 import numpy as np
 from utilsAPI import getAPIURL, getWorkerType
 from utilsAuth import getToken
-from utils import getDataDirectory, checkTime, checkResourceUsage, sendStatusEmail
+from utils import getDataDirectory, checkTime, checkResourceUsage, sendStatusEmail, getSessionJson
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,26 +19,41 @@ API_URL = getAPIURL()
 workerType = getWorkerType()
 
 # if true, will delete entire data directory when finished with a trial
-isDocker = True
+isDocker = False
 
 # get start time
 t = time.localtime()
 initialStatusCheck = False
 
 while True:
+    ##########################################################################################
+    # Code to print out all the trial id and the info accorded to each one from a session_id #
+    ##########################################################################################
+    # session_id = "6045ad09-7b66-4ff5-baef-1e8cb79fec95"
+    # x = getSessionJson(session_id)
+    # for index in range(len(x["trials"])):
+    #     for key, value in x["trials"][index].items():
+    #         print(key, value)
+    #     print("\n")
+    # print("\n\n")
+
     # Run test trial at a given frequency to check status of machine. Stop machine if fails.
-    if checkTime(t,minutesElapsed=30) or not initialStatusCheck:
-        runTestSession(isDocker=isDocker)           
+    if checkTime(t, minutesElapsed=30) or not initialStatusCheck:
+        runTestSession(isDocker=isDocker)
         t = time.localtime()
         initialStatusCheck = True
-           
     # workerType = 'calibration' -> just processes calibration and neutral
     # workerType = 'all' -> processes all types of trials
-    # no query string -> defaults to 'all'
-    queue_path = "trials/dequeue/?workerType=" + workerType
+    # no query string -> defaults to 'all'`
+    trial_id = "4108f069-9029-4795-9411-ee3e10f5de83"
+    queue_path = f"{trial_id}/dequeue/?workerType=" + workerType
     try:
+        print("API_URL: " + API_URL)
         r = requests.get("{}{}".format(API_URL, queue_path),
-                         headers = {"Authorization": "Token {}".format(API_TOKEN)})
+                         headers={"Authorization": "Token {}".format(API_TOKEN)})
+        print("---------------------------------------------------------------------")
+        print(r)
+        print("---------------------------------------------------------------------")
     except Exception as e:
         traceback.print_exc()
         time.sleep(15)
@@ -48,34 +63,35 @@ while True:
         logging.info("...pulling " + workerType + " trials.")
         time.sleep(1)
         continue
-    
-    if np.floor(r.status_code/100) == 5: # 5xx codes are server faults
+
+    if np.floor(r.status_code / 100) == 5:  # 5xx codes are server faults
         logging.info("API unresponsive. Status code = {:.0f}.".format(r.status_code))
         time.sleep(5)
         continue
-    
+
     # Check resource usage
     resourceUsage = checkResourceUsage(stop_machine_and_email=True)
     logging.info(json.dumps(resourceUsage))
     logging.info(r.text)
-    
+
     trial = r.json()
     trial_url = "{}{}{}/".format(API_URL, "trials/", trial["id"])
     logging.info(trial_url)
     logging.info(trial)
-    
+
     if len(trial["videos"]) == 0:
         error_msg = {}
-        error_msg['error_msg'] = 'No videos uploaded. Ensure phones are connected and you have stable internet connection.'
+        error_msg[
+            'error_msg'] = 'No videos uploaded. Ensure phones are connected and you have stable internet connection.'
         error_msg['error_msg_dev'] = 'No videos uploaded.'
 
         r = requests.patch(trial_url, data={"status": "error", "meta": json.dumps(error_msg)},
-                         headers = {"Authorization": "Token {}".format(API_TOKEN)})
+                           headers={"Authorization": "Token {}".format(API_TOKEN)})
         continue
 
     if any([v["video"] is None for v in trial["videos"]]):
         r = requests.patch(trial_url, data={"status": "error"},
-                     headers = {"Authorization": "Token {}".format(API_TOKEN)})
+                           headers={"Authorization": "Token {}".format(API_TOKEN)})
         continue
 
     trial_type = "dynamic"
@@ -88,17 +104,17 @@ while True:
     logging.info("processTrial({},{},trial_type={})".format(trial["session"], trial["id"], trial_type))
 
     try:
-        processTrial(trial["session"], trial["id"], trial_type=trial_type, isDocker=isDocker)   
+        processTrial(trial["session"], trial["id"], trial_type=trial_type, isDocker=isDocker)
         # note a result needs to be posted for the API to know we finished, but we are posting them 
         # automatically thru procesTrial now
         r = requests.patch(trial_url, data={"status": "done"},
-                         headers = {"Authorization": "Token {}".format(API_TOKEN)})
-        
+                           headers={"Authorization": "Token {}".format(API_TOKEN)})
+
         logging.info('0.5s pause if need to restart.')
         time.sleep(0.5)
     except Exception as e:
         r = requests.patch(trial_url, data={"status": "error"},
-                         headers = {"Authorization": "Token {}".format(API_TOKEN)})
+                           headers={"Authorization": "Token {}".format(API_TOKEN)})
         traceback.print_exc()
         args_as_strings = [str(arg) for arg in e.args]
         if len(args_as_strings) > 1 and 'pose detection timed out' in args_as_strings[1].lower():
@@ -106,10 +122,10 @@ while True:
             message = "A backend OpenCap machine timed out during pose detection. It has been stopped."
             sendStatusEmail(message=message)
             raise Exception('Worker failed. Stopped.')
-    
+
     # Clean data directory
     if isDocker:
-        folders = glob.glob(os.path.join(getDataDirectory(isDocker=True),'Data','*'))
-        for f in folders:         
+        folders = glob.glob(os.path.join(getDataDirectory(isDocker=True), 'Data', '*'))
+        for f in folders:
             shutil.rmtree(f)
             logging.info('deleting ' + f)

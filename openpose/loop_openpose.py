@@ -8,6 +8,7 @@ import subprocess
 
 logging.basicConfig(level=logging.INFO)
 
+
 #%%
 def check_cuda_device():
     try:
@@ -20,9 +21,9 @@ def check_cuda_device():
         logging.info("No CUDA-capable device is detected. Error:", e)
         raise Exception("No CUDA-capable device is detected.")
 
+
 #%%
 def getVideoOrientation(videoPath):
-    
     meta = ffmpeg.probe(videoPath)
     try:
         rotation = meta['format']['tags']['com.apple.quicktime.video-orientation']
@@ -30,28 +31,28 @@ def getVideoOrientation(videoPath):
         # For AVI (after we rewrite video), no rotation paramter, so just using h and w. 
         # For now this is ok, we don't need leaning right/left for this, just need to know
         # how to orient the pose estimation resolution parameters.
-        try: 
+        try:
             if meta['format']['format_name'] == 'avi':
-                if meta['streams'][0]['height']>meta['streams'][0]['width']:
+                if meta['streams'][0]['height'] > meta['streams'][0]['width']:
                     rotation = 90
                 else:
                     rotation = 0
             else:
                 raise Exception('no rotation info')
         except:
-            rotation = 90 # upright is 90, and intrinsics were captured in that orientation
-            
-    if int(rotation) in [0,180]: 
+            rotation = 90  # upright is 90, and intrinsics were captured in that orientation
+
+    if int(rotation) in [0, 180]:
         horizontal = True
     else:
         horizontal = False
-        
+
     return horizontal
+
 
 #%%
 def getResolutionCommand(resolutionPoseDetection, horizontal):
-    
-    # Adjust OpenPose call based on selected resolution.    
+    # Adjust OpenPose call based on selected resolution.
     if resolutionPoseDetection == 'default':
         cmd_hr = ' '
     elif resolutionPoseDetection == '1x1008_4scales':
@@ -63,16 +64,17 @@ def getResolutionCommand(resolutionPoseDetection, horizontal):
         if horizontal:
             cmd_hr = ' --net_resolution "736x-1" '
         else:
-            cmd_hr = ' --net_resolution "-1x736" '  
+            cmd_hr = ' --net_resolution "-1x736" '
     elif resolutionPoseDetection == '1x736_2scales':
         if horizontal:
             cmd_hr = ' --net_resolution "-1x736" --scale_number 2 --scale_gap 0.75 '
         else:
             cmd_hr = ' --net_resolution "736x-1" --scale_number 2 --scale_gap 0.75 '
-            
+
     return cmd_hr
 
-#%% 
+
+#%%
 
 logging.info("Waiting for data...")
 
@@ -83,11 +85,11 @@ output_dir = "/openpose/data/output_openpose"
 with open('/openpose/defaultOpenCapSettings.json') as f:
     defaultOpenCapSettings = json.load(f)
 resolutionPoseDetection = defaultOpenCapSettings['openpose']
-    
+
 if os.path.isfile(video_path):
     os.remove(video_path)
 
-while True:    
+while True:
     if not os.path.isfile(video_path):
         time.sleep(0.1)
         continue
@@ -97,7 +99,7 @@ while True:
     if os.path.isdir(output_dir):
         shutil.rmtree(output_dir)
     os.makedirs(output_dir)
-    
+
     horizontal = getVideoOrientation(video_path)
     cmd_hr = getResolutionCommand(resolutionPoseDetection, horizontal)
 

@@ -32,6 +32,7 @@ you run the script.
 
 import sys
 import os
+
 sys.path.append(os.path.abspath('./..'))
 import utils
 
@@ -40,19 +41,18 @@ import utils
 # Sessions to download. List of strings of identifiers (36-character) string
 # at the end of the session url app.opencap.ai/session/<session_id>
 session_ids = [
-               '23d52d41-69fe-47cf-8b60-838e4268dd50'
-              ] # list of session identifiers as strings
+    '23d52d41-69fe-47cf-8b60-838e4268dd50'
+]  # list of session identifiers as strings
 
 # Local path to download sessions to
-downloadFolder = os.path.abspath(os.path.join(os.path.dirname(__file__),'..','Data'))
+downloadFolder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Data'))
 
 # Name downloaded folder with subject name from web app (True), or the session_id (False)
 useSubjectIdentifierAsFolderName = True
-
 
 #%% Processing
 
 # Batch download. 
 for session_id in session_ids:
-    utils.downloadAndZipSession(session_id,justDownload=True,data_dir=downloadFolder,
-                          useSubjectNameFolder=useSubjectIdentifierAsFolderName)
+    utils.downloadAndZipSession(session_id, justDownload=True, data_dir=downloadFolder,
+                                useSubjectNameFolder=useSubjectIdentifierAsFolderName)

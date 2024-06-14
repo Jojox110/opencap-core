@@ -78,6 +78,7 @@ trialInfo = {'trials':trials,
              'nSquaresHeight':CheckerBoardParams['dimensions'][1],
              'squareSize':CheckerBoardParams['squareSize'],
              'cameraModel':cameraModel,}
+
 with open(trialFile, 'w') as f:
     yaml.dump(trialInfo,f)
     
